@@ -11,7 +11,6 @@ import {
   hydrateFiles,
 } from 'https://deno.land/x/grammy_files@v1.0.4/mod.ts';
 import { transcribe, writeX } from './openai_calls.ts';
-import { convertOggToMp3 } from './utils.ts';
 
 type MyContext = FileFlavor<Context>;
 type MyApi = FileApiFlavor<Api>;
@@ -25,14 +24,12 @@ bot.api.config.use(hydrateFiles(bot.token));
 bot.command('start', (ctx) => ctx.reply('Welcome! Up and running.'));
 
 bot.command('test', async (ctx) => {
-  // const path = 'files/AgAD6DwAAoGbYUo.mp3';
-  // const text = await transcribe(path);
-  // await ctx.reply(text);
-
-  await convertOggToMp3('files/AgAD6DwAAoGbYUo.ogg');
+  await ctx.reply('This is a test command. Why did you run it?');
 });
 
-bot.on('message:text', (ctx) => ctx.reply('Got another message!'));
+bot.on('message:text', async (ctx) => {
+  await ctx.reply("I can't read. Send me a voice message!");
+});
 
 bot.on('message:voice', async (ctx) => {
   const transcribeButton = InlineKeyboard.text('Transcribe', `transcribe`);
@@ -65,9 +62,10 @@ bot.callbackQuery('transcribe', async (ctx) => {
   const file = await ctx.api.getFile(fileId);
 
   const filename = file.file_unique_id + '.ogg';
-  let path = `files/${filename}`;
+  const path = `files/${filename}`;
+
   try {
-    await file.download('files/' + filename);
+    await file.download(path);
   } catch (e) {
     if (e instanceof Deno.errors.AlreadyExists) {
       console.log('File already exists, skipping download');
@@ -76,20 +74,24 @@ bot.callbackQuery('transcribe', async (ctx) => {
     }
   }
 
-  path = await convertOggToMp3(path);
-  const text = await transcribe(path);
+  try {
+    const text = await transcribe(path);
 
-  await ctx.editMessageText(text, {
-    message_id: transcribeMessage.message_id,
-  });
+    await ctx.editMessageText(text, {
+      message_id: transcribeMessage.message_id,
+    });
 
-  await ctx.reply('Converting to tweet...');
+    await ctx.reply('Converting to tweet...');
 
-  const x = await writeX(text);
+    const x = await writeX(text);
 
-  await ctx.reply('Done ✅');
+    await ctx.reply('Done ✅');
 
-  await ctx.reply(x ?? '');
+    await ctx.reply(x ?? '');
+  } catch (e) {
+    await ctx.reply('Something went wrong...');
+    console.error(e);
+  }
 });
 
 bot.on('callback_query:data', async (ctx) => {
@@ -97,6 +99,9 @@ bot.on('callback_query:data', async (ctx) => {
   await ctx.answerCallbackQuery(); // remove loading animation
 });
 
-bot.catch((err) => console.error(err));
+bot.catch(async (err) => {
+  await console.error(err);
+  err.ctx.reply('Some unhandled error occurred. Go away!');
+});
 
 bot.start();
