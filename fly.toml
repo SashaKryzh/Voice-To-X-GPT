@@ -1,0 +1,18 @@
+# fly.toml app configuration file generated for voice-to-x on 2023-08-04T22:49:51+02:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = "voice-to-x"
+primary_region = "waw"
+
+kill_signal = "SIGINT"
+kill_timeout = 5
+
+[build]
+
+[env]
+  PORT = "8080"
+
+[processes]
+  app = "run --allow-net --allow-env --allow-read --allow-write=files/ ./bot.ts"

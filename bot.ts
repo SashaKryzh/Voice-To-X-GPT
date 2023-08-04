@@ -83,6 +83,8 @@ bot.callbackQuery('transcribe', async (ctx) => {
       message_id: transcribeMessage.message_id,
     });
 
+    Deno.removeSync(path);
+
     await ctx.reply('Converting to tweet...');
 
     const x = await writeX(text);
@@ -100,6 +102,9 @@ bot.on('callback_query:data', async (ctx) => {
   console.log('Unknown button event with payload', ctx.callbackQuery.data);
   await ctx.answerCallbackQuery(); // remove loading animation
 });
+
+Deno.addSignalListener("SIGINT", () => bot.stop());
+Deno.addSignalListener("SIGTERM", () => bot.stop());
 
 bot.catch(async (err) => {
   await console.error(err);
