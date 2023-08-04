@@ -10,6 +10,7 @@ import {
   FileFlavor,
   hydrateFiles,
 } from 'https://deno.land/x/grammy_files@v1.0.4/mod.ts';
+import { autoRetry } from 'https://esm.sh/@grammyjs/auto-retry@1.1.1';
 import { transcribe, writeX } from './openai_calls.ts';
 
 type MyContext = FileFlavor<Context>;
@@ -20,6 +21,7 @@ const token = Deno.env.get('BOT_TOKEN')!;
 const bot = new Bot<MyContext, MyApi>(token);
 
 bot.api.config.use(hydrateFiles(bot.token));
+bot.api.config.use(autoRetry());
 
 bot.command('start', (ctx) => ctx.reply('Welcome! Up and running.'));
 

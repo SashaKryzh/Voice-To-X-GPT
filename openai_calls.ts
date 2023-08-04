@@ -3,7 +3,9 @@ import {
   OpenAI,
 } from 'https://deno.land/x/openai@1.4.2/mod.ts';
 
-const openai = new OpenAI(Deno.env.get('OPENAI_API_KEY')!);
+const openaiToken = Deno.env.get('OPENAI_API_KEY')!;
+
+const openai = new OpenAI(openaiToken);
 
 export const transcribe = async (filePath: string) => {
   const resp = await openai.createTranscription({
