@@ -2,6 +2,7 @@ import 'https://deno.land/x/dotenv@v3.2.2/load.ts';
 import {
   Api,
   Bot,
+  CallbackQueryContext,
   Context,
   InlineKeyboard,
 } from 'https://deno.land/x/grammy@v1.17.2/mod.ts';
@@ -12,38 +13,43 @@ import {
 } from 'https://deno.land/x/grammy_files@v1.0.4/mod.ts';
 import { autoRetry } from 'https://esm.sh/@grammyjs/auto-retry@1.1.1';
 import { transcribe, writeX, writeXThread } from './openai_calls.ts';
+import { downloadFile } from './utils.ts';
 
-type MyContext = FileFlavor<Context>;
-type MyApi = FileApiFlavor<Api>;
+export const isDev = Deno.env.get('NODE_ENV') === 'development';
 
-export const isProd = Deno.env.get('NODE_ENV') === 'development' ? false : true;
+export type MyContext = FileFlavor<Context>;
+export type MyApi = FileApiFlavor<Api>;
 
 const token = Deno.env.get('BOT_TOKEN')!;
-
 const bot = new Bot<MyContext, MyApi>(token);
 
 bot.api.config.use(hydrateFiles(bot.token));
 bot.api.config.use(autoRetry());
 
+//#region Commands
+
 await bot.api.setMyCommands([
-  { command: 'start', description: 'Start the bot' },
-  ...(isProd ? [] : [{ command: 'test', description: 'Test command' }]),
+  ...(isDev ? [{ command: 'test', description: 'Test command' }] : []),
 ]);
 
-bot.command('start', (ctx) => ctx.reply('Welcome! Up and running.'));
+bot.command('start', (ctx) => ctx.reply('I am ready to serve you!'));
 
-if (!isProd) {
+if (isDev) {
   bot.command('test', async (ctx) => {
     await ctx.reply('This is a test command. Why did you run it?');
   });
 }
 
+//#endregion
+
+//#region Messages
+
 bot.on('message:text', async (ctx) => {
-  await ctx.reply("I can't read. Send me a voice message!");
+  await ctx.reply("I can't read 🙊\nSend me a voice message 🗣️");
 });
 
 bot.on('message:voice', async (ctx) => {
-  const transcribeButton = InlineKeyboard.text('Transcribe', `transcribe`);
+  const transcribeButton = InlineKeyboard.text('Transcribe ✍️', `transcribe`);
 
   const keyboard = InlineKeyboard.from([[transcribeButton]]);
 
@@ -56,71 +62,63 @@ bot.on('message:voice', async (ctx) => {
   );
 });
 
+//#endregion
+
+//#region Callbacks
+
 bot.callbackQuery('transcribe', async (ctx) => {
-  const actionMessage = ctx.callbackQuery.message;
-  const messageWithFile = actionMessage?.reply_to_message;
+  const callbackMessage = ctx.callbackQuery.message;
+  const messageWithFile = callbackMessage?.reply_to_message;
   const fileId = messageWithFile?.voice?.file_id;
 
   if (!fileId) {
-    return ctx.answerCallbackQuery({ text: 'Something went wrong...' });
+    return ctx.answerCallbackQuery({
+      text: 'Something went wrong... Try sending file again.',
+    });
   }
 
   await ctx.answerCallbackQuery();
 
-  const transcribeMessage = await ctx.reply(`Transcribing...`, {
+  const transcribedMessage = await ctx.reply(`Transcribing...`, {
     reply_to_message_id: messageWithFile?.message_id,
   });
 
-  const file = await ctx.api.getFile(fileId);
-  const filename = file.file_unique_id + '.ogg';
-  const path = `files/${filename}`;
-
+  let text = '';
   try {
-    await file.download(path);
-  } catch (e) {
-    if (e instanceof Deno.errors.AlreadyExists) {
-      console.log('File already exists, skipping download.');
-    } else {
-      throw e;
-    }
-  }
-
-  try {
-    const text = await transcribe(path);
-
-    const isLongform = text.length > 200;
-
-    const tweetButton = InlineKeyboard.text('Tweet', `tweet`);
-    const threadButton = InlineKeyboard.text('Thread', `thread`);
-
-    const buttons = isLongform ? [tweetButton, threadButton] : [tweetButton];
-
-    const keyboard = InlineKeyboard.from([buttons]);
-
-    await ctx.api.editMessageText(
-      ctx.chat?.id ?? '',
-      transcribeMessage.message_id,
-      text,
-      {
-        reply_markup: keyboard,
-      }
-    );
-
-    if (!isProd) {
-      await ctx.api.deleteMessage(
-        ctx.chat?.id ?? '',
-        actionMessage?.message_id ?? 0
-      );
-    }
-
+    const path = await downloadFile(ctx, fileId);
+    text = await transcribe(path);
     Deno.removeSync(path);
   } catch (e) {
     await ctx.reply('Something went wrong...');
     console.error(e);
+    return;
+  }
+
+  const isLongForm = text.length > 150;
+  const buttons = [
+    InlineKeyboard.text('Tweet 📄', `tweet`),
+    ...(isLongForm ? [InlineKeyboard.text('Thread 📘', `thread`)] : []),
+  ];
+  const keyboard = InlineKeyboard.from([buttons]);
+  const chatId = ctx.chat?.id ?? '';
+
+  await ctx.api.editMessageText(chatId, transcribedMessage.message_id, text, {
+    reply_markup: keyboard,
+  });
+
+  if (!isDev) {
+    await ctx.api.deleteMessage(chatId, callbackMessage?.message_id ?? 0);
   }
 });
 
-bot.callbackQuery('tweet', async (ctx) => {
+bot.callbackQuery('tweet', (ctx) => genXCallbackHandler(ctx, 'tweet'));
+
+bot.callbackQuery('thread', (ctx) => genXCallbackHandler(ctx, 'thread'));
+
+const genXCallbackHandler = async (
+  ctx: CallbackQueryContext<MyContext>,
+  type: 'tweet' | 'thread'
+) => {
   const messageWithText = ctx.callbackQuery.message;
   const text = messageWithText?.text;
 
@@ -130,54 +128,31 @@ bot.callbackQuery('tweet', async (ctx) => {
 
   await ctx.answerCallbackQuery();
 
-  const tweetMessage = await ctx.reply('Converting to tweet...', {
+  const xMessage = await ctx.reply(`Generating ${type}...`, {
     reply_to_message_id: messageWithText?.message_id,
   });
 
-  const x = await writeX(text);
+  const x = await (type === 'tweet' ? writeX(text) : writeXThread(text));
 
-  if (!x) {
-    return ctx.answerCallbackQuery({ text: 'Something went wrong...' });
-  }
-
-  ctx.api.editMessageText(ctx.chat?.id ?? '', tweetMessage.message_id, x);
-});
-
-bot.callbackQuery('thread', async (ctx) => {
-  const messageWithText = ctx.callbackQuery.message;
-  const text = messageWithText?.text;
-
-  if (!text) {
-    return ctx.answerCallbackQuery({ text: 'Something went wrong...' });
-  }
-
-  await ctx.answerCallbackQuery();
-
-  const threadMessage = await ctx.reply('Converting to twitter thread...', {
-    reply_to_message_id: messageWithText?.message_id,
-  });
-
-  const xThread = await writeXThread(text);
-
-  if (!xThread) {
-    return ctx.reply('Something went wrong...');
-  }
-
-  ctx.api.editMessageText(
+  return ctx.api.editMessageText(
     ctx.chat?.id ?? '',
-    threadMessage.message_id,
-    xThread
+    xMessage.message_id,
+    x ?? 'Something went wrong...'
   );
-});
+};
+
+//#endregion
 
 bot.on('callback_query:data', async (ctx) => {
   console.log('Unknown button event with payload', ctx.callbackQuery.data);
   await ctx.answerCallbackQuery(); // remove loading animation
 });
 
-bot.catch(async (err) => {
-  await console.error(err);
-  err.ctx.reply('Some unhandled error occurred. Go away!');
+bot.catch((err) => {
+  const ctx = err.ctx;
+  console.error('Error while handling update ', ctx.update.update_id);
+  console.error(err.error);
+  ctx.reply('Some unhandled error occurred. Go away!');
 });
 
 Deno.addSignalListener('SIGINT', () => bot.stop());
