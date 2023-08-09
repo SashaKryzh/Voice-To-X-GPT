@@ -24,24 +24,15 @@ export const transcribe = async (filePath: string) => {
 
 //#region Writing tweets and threads.
 
-const systemMessageContent = {
-  tweet: `You are a helpful assistant to write tweets.
-	You will be given a regular text of any size and form, and you will have to write a tweet based on it.
-	Respond ONLY with the content of the tweet that should be posted, without any additional text.
-	Use the same language as the original text.
-	Begin!`,
-  thread: `You are a helpful assistant to write twitter threads.
-  You ALWAYS have to write a thread, even if the text is short with minimum 2 tweets!
-	You will be given a regular text of any size and form, and you will have to write a twitter thread based on it.
-	Respond ONLY with the content of the whole thread that should be posted in 1 message, without any additional text.
-  Separate each tweet in the thread with "---".
-	Use the same language as the original text.
-	Begin!`,
-} as const;
-
 export const writeX = async (text: string) => {
+  const system = `You are a professional content creator that helps people generate tweets.
+  You will be given a regular text and have to write a tweet based on it.
+  You MUST respond ONLY with the tweet content that should be posted. Don't add additional information to your response.
+  Write tweets in the same language as the original text. But if you add tags, ONLY they should be in English.
+  Begin!`;
+
   const messages: ChatCompletionMessage[] = [
-    { role: 'system', content: systemMessageContent.tweet },
+    { role: 'system', content: system },
     { role: 'user', content: text },
   ];
 
@@ -54,8 +45,15 @@ export const writeX = async (text: string) => {
 };
 
 export const writeXThread = async (text: string) => {
+  const system = `You are a professional content creator that helps people generate Twitter threads.
+  You will be given a regular text, and have to write a Twitter thread based on it.
+  You ALWAYS must write a thread with two or more tweets and a summary at the beginning.
+  Before writing, identify the language used in a text and write in the same language.
+  You MUST respond ONLY with the thread content that should be posted. Don't add additional information to your response.
+  Begin!`;
+
   const messages: ChatCompletionMessage[] = [
-    { role: 'system', content: systemMessageContent.thread },
+    { role: 'system', content: system },
     { role: 'user', content: text },
   ];
 
