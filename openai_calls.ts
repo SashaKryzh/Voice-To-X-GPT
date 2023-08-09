@@ -35,3 +35,26 @@ export const writeX = async (text: string) => {
 
   return resp.choices[0].message.content;
 };
+
+export const writeXThread = async (text: string) => {
+  const messages: ChatCompletionMessage[] = [
+    {
+      role: 'system',
+      content: `You are a helpful assistant to write twitter threads.
+  You ALWAYS have to write a thread, even if the text is short with minimum 2 tweets!
+	You will be given a regular text of any size and form, and you will have to write a twitter thread based on it.
+	Respond ONLY with the content of the whole thread that should be posted in 1 message, without any additional text.
+  Separate each tweet in the thread with "---".
+	Use the same language as the original text.
+	Begin!`,
+    },
+    { role: 'user', content: text },
+  ];
+
+  const resp = await openai.createChatCompletion({
+    messages,
+    model: 'gpt-3.5-turbo',
+  });
+
+  return resp.choices[0].message.content;
+};
