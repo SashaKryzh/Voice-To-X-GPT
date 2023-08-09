@@ -44,9 +44,12 @@ if (isDev) {
 
 //#region Messages
 
-bot.on('message:text', async (ctx) => {
-  await ctx.reply("I can't read 🙊\nSend me a voice message 🗣️");
-});
+bot.on('message').filter(
+  (ctx) => ctx.message?.voice === undefined,
+  async (ctx) => {
+    await ctx.reply("I don't understand 🤡\nSend me a voice message 🗣️");
+  }
+);
 
 bot.on('message:voice', async (ctx) => {
   const transcribeButton = InlineKeyboard.text('Transcribe ✍️', `transcribe`);
