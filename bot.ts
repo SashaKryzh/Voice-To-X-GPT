@@ -33,9 +33,14 @@ const bot = new Bot<MyContext, MyApi>(token);
 bot.api.config.use(hydrateFiles(bot.token));
 bot.api.config.use(autoRetry());
 
+const botDescription =
+  'Telegram bot that converts voice messages to text, and text to Twitter tweets or threads.';
+bot.api.setMyDescription(botDescription);
+bot.api.setMyShortDescription(botDescription);
+
 //#region Commands
 
-await bot.api.setMyCommands([
+bot.api.setMyCommands([
   { command: 'help', description: 'Show help message' },
   ...(isDev ? [{ command: 'test', description: 'Test command' }] : []),
 ]);
@@ -57,9 +62,12 @@ I can help you transcribe voice messages and generate tweets and threads from te
 
 I generate threads only from messages that are longer than 150 characters\\.
 
+\\[[GitHub repository](https://github.com/SashaKryzh/tg-voice-gpt)\\]
+
 Please send me a *text* or *voice* message\\.`,
     {
       parse_mode: 'MarkdownV2',
+      disable_web_page_preview: true,
     }
   )
 );
