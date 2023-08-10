@@ -42,7 +42,7 @@ export const accessMiddleware = async (
   if (!user?.hasAccess) {
     ctx.callbackQuery && ctx.answerCallbackQuery();
     return ctx.reply(
-      'You are not authorized to use this bot.\nIf you want to receive it, please use /requestaccess command'
+      'You are not authorized to use this bot.\n\nIf you want to receive access, please use /requestaccess command.'
     );
   }
 

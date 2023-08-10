@@ -6,3 +6,4 @@
 - [ ] Do not hardcode OpenAI prompts, but configure them in the database.
 - [ ] Linter for awaiting promises and other rules.
 - [ ] Use webhooks instead of long polling?
+- [ ] Deploy to Fly with GitHub Actions.
