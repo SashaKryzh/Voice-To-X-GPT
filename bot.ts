@@ -6,12 +6,14 @@ import {
   Context,
   InlineKeyboard,
 } from 'https://deno.land/x/grammy@v1.17.2/mod.ts';
+import { Message } from 'https://deno.land/x/grammy@v1.17.2/types.deno.ts';
 import {
   FileApiFlavor,
   FileFlavor,
   hydrateFiles,
 } from 'https://deno.land/x/grammy_files@v1.0.4/mod.ts';
 import { autoRetry } from 'https://esm.sh/@grammyjs/auto-retry@1.1.1';
+import { prisma } from './database.ts';
 import { transcribe, writeX, writeXThread } from './openai_calls.ts';
 import {
   downloadFile,
@@ -20,7 +22,6 @@ import {
   tweetButton,
   zwnj,
 } from './utils.ts';
-import { Message } from 'https://deno.land/x/grammy@v1.17.2/types.deno.ts';
 
 export const isDev = Deno.env.get('NODE_ENV') === 'development';
 
@@ -71,6 +72,32 @@ Please send me a *text* or *voice* message\\.`,
     }
   )
 );
+
+bot.command('requestaccess', async (ctx) => {
+  const from = ctx.from;
+
+  if (!from) {
+    return ctx.reply('Something went wrong...');
+  }
+
+  const dbUser = await prisma.user.findUnique({ where: { id: from.id } });
+
+  if (dbUser?.hasAccess) {
+    return ctx.reply('You already have access!');
+  }
+
+  if (!dbUser) {
+    const name = `${from.first_name} ${from.last_name ?? ''}`.trim();
+
+    await prisma.user.upsert({
+      where: { id: from.id },
+      update: {},
+      create: { id: from.id, username: from.username, name: name },
+    });
+  }
+
+  await ctx.reply('Your request has been sent. Wait.');
+});
 
 if (isDev) {
   bot.command('test', async (ctx) => {
