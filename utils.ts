@@ -31,8 +31,6 @@ export const accessMiddleware = async (
   ctx: MyContext,
   next: () => Promise<void>
 ) => {
-  ctx.callbackQuery && ctx.answerCallbackQuery();
-
   const from = ctx.from;
 
   if (!from) {
@@ -42,6 +40,7 @@ export const accessMiddleware = async (
   const user = await prisma.user.findUnique({ where: { id: from.id } });
 
   if (!user?.hasAccess) {
+    ctx.callbackQuery && ctx.answerCallbackQuery();
     return ctx.reply(
       'You are not authorized to use this bot.\nIf you want to receive it, please use /requestaccess command'
     );

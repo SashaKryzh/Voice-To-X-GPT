@@ -233,7 +233,7 @@ const genXCallbackHandler = async (
 
 bot.on('callback_query:data', async (ctx) => {
   console.log('Unknown button event with payload', ctx.callbackQuery.data);
-  await ctx.answerCallbackQuery(); // remove loading animation
+  await ctx.answerCallbackQuery();
 });
 
 bot.catch((err) => {
