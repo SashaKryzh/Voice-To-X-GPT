@@ -13,7 +13,14 @@ import {
 } from 'https://deno.land/x/grammy_files@v1.0.4/mod.ts';
 import { autoRetry } from 'https://esm.sh/@grammyjs/auto-retry@1.1.1';
 import { transcribe, writeX, writeXThread } from './openai_calls.ts';
-import { downloadFile } from './utils.ts';
+import {
+  downloadFile,
+  isLongForm,
+  threadButton,
+  tweetButton,
+  zwnj,
+} from './utils.ts';
+import { Message } from 'https://deno.land/x/grammy@v1.17.2/types.deno.ts';
 
 export const isDev = Deno.env.get('NODE_ENV') === 'development';
 
@@ -44,12 +51,16 @@ if (isDev) {
 
 //#region Messages
 
-bot.on('message').filter(
-  (ctx) => ctx.message?.voice === undefined,
-  async (ctx) => {
-    await ctx.reply("I don't understand 🤡\nSend me a voice message 🗣️");
-  }
-);
+bot.on('message:text', async (ctx) => {
+  const keyboard = InlineKeyboard.from([
+    [tweetButton, ...(isLongForm(ctx.message.text) ? [threadButton] : [])],
+  ]);
+
+  await ctx.reply('What do you want me to do?' + zwnj, {
+    reply_to_message_id: ctx.message.message_id,
+    reply_markup: keyboard,
+  });
+});
 
 bot.on('message:voice', async (ctx) => {
   const transcribeButton = InlineKeyboard.text('Transcribe ✍️', `transcribe`);
@@ -63,6 +74,10 @@ bot.on('message:voice', async (ctx) => {
       reply_markup: keyboard,
     }
   );
+});
+
+bot.on('message', async (ctx) => {
+  await ctx.reply("I don't understand 🤡\nSend me a text or voice message 🗣️");
 });
 
 //#endregion
@@ -97,12 +112,9 @@ bot.callbackQuery('transcribe', async (ctx) => {
     return;
   }
 
-  const isLongForm = text.length > 150;
-  const buttons = [
-    InlineKeyboard.text('Tweet 📄', `tweet`),
-    ...(isLongForm ? [InlineKeyboard.text('Thread 📘', `thread`)] : []),
-  ];
-  const keyboard = InlineKeyboard.from([buttons]);
+  const keyboard = InlineKeyboard.from([
+    [tweetButton, ...(isLongForm(text) ? [threadButton] : [])],
+  ]);
   const chatId = ctx.chat?.id ?? '';
 
   await ctx.api.editMessageText(chatId, transcribedMessage.message_id, text, {
@@ -122,7 +134,17 @@ const genXCallbackHandler = async (
   ctx: CallbackQueryContext<MyContext>,
   type: 'tweet' | 'thread'
 ) => {
-  const messageWithText = ctx.callbackQuery.message;
+  const callbackMessage = ctx.callbackQuery.message;
+  if (!callbackMessage) {
+    return ctx.answerCallbackQuery({ text: 'Something went wrong...' });
+  }
+  let messageWithText: Message | undefined;
+  if (callbackMessage.text?.endsWith(zwnj)) {
+    messageWithText = callbackMessage.reply_to_message;
+  } else {
+    messageWithText = callbackMessage;
+  }
+
   const text = messageWithText?.text;
 
   if (!text) {
