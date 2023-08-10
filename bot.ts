@@ -36,10 +36,31 @@ bot.api.config.use(autoRetry());
 //#region Commands
 
 await bot.api.setMyCommands([
+  { command: 'help', description: 'Show help message' },
   ...(isDev ? [{ command: 'test', description: 'Test command' }] : []),
 ]);
 
-bot.command('start', (ctx) => ctx.reply('I am ready to serve you!'));
+bot.command('start', async (ctx) => {
+  const message = `Hi 👋
+  
+I'm VoiceToX bot, and I can help you generate tweets and threads from your messages\\.
+
+Now send me a *text* or *voice* message\\.`;
+  await ctx.reply(message, { parse_mode: 'MarkdownV2' });
+});
+
+bot.command('help', (ctx) =>
+  ctx.reply(
+    `My name is VoiceToX bot 🤖
+
+I can help you transcribe voice messages and generate tweets and threads from text\\.
+
+Please send me a *text* or *voice* message\\.`,
+    {
+      parse_mode: 'MarkdownV2',
+    }
+  )
+);
 
 if (isDev) {
   bot.command('test', async (ctx) => {
