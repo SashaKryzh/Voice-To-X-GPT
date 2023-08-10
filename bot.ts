@@ -16,6 +16,7 @@ import { autoRetry } from 'https://esm.sh/@grammyjs/auto-retry@1.1.1';
 import { prisma } from './database.ts';
 import { transcribe, writeX, writeXThread } from './openai_calls.ts';
 import {
+  accessMiddleware,
   downloadFile,
   isLongForm,
   threadButton,
@@ -109,7 +110,7 @@ if (isDev) {
 
 //#region Messages
 
-bot.on('message:text', async (ctx) => {
+bot.on('message:text', accessMiddleware, async (ctx) => {
   const keyboard = InlineKeyboard.from([
     [tweetButton, ...(isLongForm(ctx.message.text) ? [threadButton] : [])],
   ]);
@@ -120,7 +121,7 @@ bot.on('message:text', async (ctx) => {
   });
 });
 
-bot.on('message:voice', async (ctx) => {
+bot.on('message:voice', accessMiddleware, async (ctx) => {
   const transcribeButton = InlineKeyboard.text('Transcribe ✍️', `transcribe`);
 
   const keyboard = InlineKeyboard.from([[transcribeButton]]);
@@ -142,7 +143,7 @@ bot.on('message', async (ctx) => {
 
 //#region Callbacks
 
-bot.callbackQuery('transcribe', async (ctx) => {
+bot.callbackQuery('transcribe', accessMiddleware, async (ctx) => {
   const callbackMessage = ctx.callbackQuery.message;
   const messageWithFile = callbackMessage?.reply_to_message;
   const fileId = messageWithFile?.voice?.file_id;
@@ -184,9 +185,13 @@ bot.callbackQuery('transcribe', async (ctx) => {
   }
 });
 
-bot.callbackQuery('tweet', (ctx) => genXCallbackHandler(ctx, 'tweet'));
+bot.callbackQuery('tweet', accessMiddleware, (ctx) =>
+  genXCallbackHandler(ctx, 'tweet')
+);
 
-bot.callbackQuery('thread', (ctx) => genXCallbackHandler(ctx, 'thread'));
+bot.callbackQuery('thread', accessMiddleware, (ctx) =>
+  genXCallbackHandler(ctx, 'thread')
+);
 
 const genXCallbackHandler = async (
   ctx: CallbackQueryContext<MyContext>,
