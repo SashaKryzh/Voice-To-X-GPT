@@ -55,6 +55,8 @@ bot.command('help', (ctx) =>
 
 I can help you transcribe voice messages and generate tweets and threads from text\\.
 
+I generate threads only from messages that are longer than 150 characters\\.
+
 Please send me a *text* or *voice* message\\.`,
     {
       parse_mode: 'MarkdownV2',
