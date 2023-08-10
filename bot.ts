@@ -84,7 +84,7 @@ bot.command('requestaccess', async (ctx) => {
   const dbUser = await prisma.user.findUnique({ where: { id: from.id } });
 
   if (dbUser?.hasAccess) {
-    return ctx.reply('You already have access!');
+    return ctx.reply('You already have access. Enjoy!');
   }
 
   if (!dbUser) {
@@ -97,7 +97,7 @@ bot.command('requestaccess', async (ctx) => {
     });
   }
 
-  await ctx.reply('Your request has been sent. Wait.');
+  await ctx.reply('Your request has been sent. Wait.\n\nAlso, notify @SashaKryzh to review it if you haven\'t done it yet.');
 });
 
 if (isDev) {
