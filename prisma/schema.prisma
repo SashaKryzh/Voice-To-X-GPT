@@ -15,7 +15,7 @@ datasource db {
 
 model User {
   id        BigInt  @id
-  username  String?  @unique
+  username  String? @unique
   name      String
   hasAccess Boolean @default(false)
 }
