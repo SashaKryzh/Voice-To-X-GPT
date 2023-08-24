@@ -97,7 +97,9 @@ bot.command('requestaccess', async (ctx) => {
     });
   }
 
-  await ctx.reply('Your request has been sent. Wait.\n\nAlso, notify @SashaKryzh to review it if you haven\'t done it yet.');
+  await ctx.reply(
+    "Your request has been sent. Wait.\n\nAlso, notify @SashaKryzh to review it if you haven't done it yet."
+  );
 });
 
 if (isDev) {
